@@ -1,9 +1,9 @@
 module AST
-export SPARQLNode, Clause, Statement,
-  Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable, Triple,
-  Expression,
+export SPARQLNode, Clause, Statement, Node, Expression,
+  Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable, Triple,
   PrologueClause, BaseURI, Prefix,
-  Query, Select, Construct, Ask, Describe
+  Query, Select, Construct, Ask, Describe,
+  SolutionModifier, Dataset, OrderBy, Limit, Offset, GroupBy, Having
 
 using AutoHashEquals
 
@@ -23,6 +23,7 @@ abstract type Statement <: SPARQLNode end
 ###################
 
 abstract type Node <: SPARQLNode end
+abstract type Expression <: Node end
 abstract type Resource <: Node end
 
 @auto_hash_equals struct ResourceURI <: Resource
@@ -44,7 +45,7 @@ end
   name::String
 end
 
-@auto_hash_equals struct Variable <: Node
+@auto_hash_equals struct Variable <: Expression
   name::String
 end
 
@@ -57,11 +58,6 @@ end
 # Convenience constructors
 Resource(uri::String) = ResourceURI(uri)
 Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
-
-# Expressions
-#############
-
-abstract type Expression <: Node end
 
 # Prologue
 ##########
@@ -124,6 +120,39 @@ end
   function Describe(nodes::Vector{<:Node}, pattern::Vector{Triple}, args...)
     new(nodes, pattern, collect(args))
   end
+end
+
+# Clauses
+#########
+
+abstract type SolutionModifier <: Clause end
+
+@auto_hash_equals struct Dataset <: Clause
+  resource::Resource
+  named::Bool
+  Dataset(resource::Resource; named::Bool=false) = new(resource, named)
+end
+
+@auto_hash_equals struct OrderBy <: SolutionModifier
+  variable::Expression
+  desc::Bool
+  OrderBy(variable::Expression; desc::Bool=false) = new(variable, desc)
+end
+
+@auto_hash_equals struct Limit <: SolutionModifier
+  count::Int
+end
+
+@auto_hash_equals struct Offset <: SolutionModifier
+  count::Int
+end
+
+@auto_hash_equals struct GroupBy <: SolutionModifier
+  variable::VariableBinding
+end
+
+@auto_hash_equals struct Having <: SolutionModifier
+  constraint::Expression
 end
 
 end
