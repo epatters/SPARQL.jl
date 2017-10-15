@@ -83,7 +83,7 @@ const VariableBinding = Union{Variable,Pair{Expression,Variable}}
 @auto_hash_equals struct Select <: Query
   variables::Vector{<:VariableBinding}
   pattern::Vector{Triple}
-  modifiers::Vector{<:Clause}
+  clauses::Vector{<:Clause}
   distinct::Bool
   reduced::Bool
   
@@ -96,7 +96,7 @@ end
 @auto_hash_equals struct Construct <: Query
   construct::Vector{Triple}
   pattern::Vector{Triple}
-  modifiers::Vector{<:Clause}
+  clauses::Vector{<:Clause}
   
   function Construct(cons::Vector{Triple}, pattern::Vector{Triple}, args...)
     new(cons, pattern, collect(args))
@@ -105,7 +105,7 @@ end
 
 @auto_hash_equals struct Ask <: Query
   pattern::Vector{Triple}
-  modifiers::Vector{<:Clause}
+  clauses::Vector{<:Clause}
   
   function Ask(pattern::Vector{Triple}, args...)
     new(pattern, collect(args))
@@ -115,7 +115,7 @@ end
 @auto_hash_equals struct Describe <: Query
   nodes::Vector{<:Node}
   pattern::Vector{Triple}
-  modifiers::Vector{<:Clause}
+  clauses::Vector{<:Clause}
   
   function Describe(nodes::Vector{<:Node}, pattern::Vector{Triple}, args...)
     new(nodes, pattern, collect(args))
@@ -134,10 +134,9 @@ abstract type SolutionModifier <: Clause end
 end
 
 @auto_hash_equals struct OrderBy <: SolutionModifier
-  variable::Expression
-  desc::Bool
-  OrderBy(variable::Expression; desc::Bool=false) = new(variable, desc)
+  variables::Vector{<:Expression}
 end
+OrderBy(variable::Expression) = OrderBy([variable])
 
 @auto_hash_equals struct Limit <: SolutionModifier
   count::Int
@@ -148,8 +147,9 @@ end
 end
 
 @auto_hash_equals struct GroupBy <: SolutionModifier
-  variable::VariableBinding
+  variables::Vector{<:VariableBinding}
 end
+GroupBy(variable::VariableBinding) = GroupBy([variable])
 
 @auto_hash_equals struct Having <: SolutionModifier
   constraint::Expression

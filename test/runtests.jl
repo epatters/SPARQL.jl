@@ -1,2 +1,5 @@
 using Base.Test
-using SPARQL
+
+@testset "Writer" begin
+  include("Writer.jl")
+end
