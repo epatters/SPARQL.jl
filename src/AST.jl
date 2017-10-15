@@ -1,6 +1,6 @@
 module AST
-export SPARQLNode, Clause, Statement, Node, Expression,
-  Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable, Triple,
+export SPARQLNode, Clause, Statement, Expression, Call,
+  Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable, Triple,
   Query, Select, Construct, Ask, Describe,
   PrologueClause, BaseURI, Prefix,
   SolutionModifierClause, Dataset, OrderBy, Limit, Offset, GroupBy, Having
@@ -11,19 +11,22 @@ using AutoHashEquals
 """
 abstract type SPARQLNode end
 
-""" Base type for clauses (subordinate expressions) in SPARQL grammar.
+""" Base type for (subordinate) clauses in SPARQL grammar.
 """
 abstract type Clause <: SPARQLNode end
 
-""" Base type for statements (complete expressions) in SPARQL grammar.
+""" Base type for (complete) statements in SPARQL grammar.
 """
 abstract type Statement <: SPARQLNode end
+
+""" Base type for expression nodes in SPARQL AST.
+"""
+abstract type Expression <: SPARQLNode end
 
 # Nodes and triples
 ###################
 
-abstract type Node <: SPARQLNode end
-abstract type Expression <: Node end
+abstract type Node <: Expression end
 abstract type Resource <: Node end
 
 @auto_hash_equals struct ResourceURI <: Resource
@@ -45,7 +48,7 @@ end
   name::String
 end
 
-@auto_hash_equals struct Variable <: Expression
+@auto_hash_equals struct Variable <: Node
   name::String
 end
 
@@ -58,6 +61,15 @@ end
 # Convenience constructors
 Resource(uri::String) = ResourceURI(uri)
 Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
+
+# Calls
+#######
+
+@auto_hash_equals struct Call <: Expression
+  head::Symbol
+  args::Vector{<:Expression}
+  Call(head, args...) = new(head, collect(args))
+end
 
 # Query
 #######

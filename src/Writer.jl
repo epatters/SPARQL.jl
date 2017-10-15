@@ -45,6 +45,42 @@ function pprint(io::IO, triple::Triple, n::Int)
   pprint(io, triple.object)
 end
 
+# Calls
+#######
+
+const unary_ops = Set([:!, :+, :-])
+const binary_ops = Set([:(=), :!=, :<, :>, :<=, :>=, :&&, :||, :+, :-, :*, :/,
+                        :NOT, Symbol("NOT IN") ])
+
+function pprint(io::IO, expr::Call, n::Int)
+  pprint_expr(io, expr, false)
+end
+
+function pprint_expr(io::IO, expr::Expression, paren::Bool)
+  pprint(io, expr)
+end
+function pprint_expr(io::IO, expr::Call, paren::Bool)
+  if length(expr.args) == 1 && expr.head in unary_ops
+    if paren; print(io, "(") end
+    print(io, expr.head, " ")
+    pprint_expr(io, first(expr.args), true)
+    if paren; print(io, ")") end
+  elseif expr.head in binary_ops
+    if paren; print(io, "(") end
+    for (i, arg) in enumerate(expr.args)
+      if i > 1
+        print(io, " ", expr.head, " ")
+      end
+      pprint_expr(io, arg, true)
+    end
+    if paren; print(io, ")") end
+  else
+    print(io, expr.head, "(")
+    join(io, (sprint(pprint, arg) for arg in expr.args), ",")
+    print(io, ")")
+  end
+end
+
 # Query
 #######
 
@@ -188,9 +224,9 @@ function pprint(io::IO, clause::GroupBy, n::Int)
 end
 
 function pprint(io::IO, clause::Having, n::Int)
-  iprint(io, n, "HAVING ")
+  iprint(io, n, "HAVING(")
   pprint(io, clause.constraint)
-  println(io)
+  println(io, ")")
 end
 
 # Utilities

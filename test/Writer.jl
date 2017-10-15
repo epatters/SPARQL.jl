@@ -22,6 +22,33 @@ spprint(ast::SPARQLNode) = sprint(pprint, ast)
 @test spprint(Triple(Resource("ex","bob"), Resource("rdf","type"), Resource("ex","Person"))) ==
   "ex:bob rdf:type ex:Person"
 
+# Calls
+#######
+
+# Unary operators
+@test spprint(Call(:!, Variable("x"))) == "! ?x"
+@test spprint(Call(:-, Variable("x"))) == "- ?x"
+
+# Binary operators
+@test spprint(Call(:!=, Variable("x"), Variable("y"))) == "?x != ?y"
+@test spprint(Call(:+, Variable("x"), Literal(1))) == "?x + 1"
+@test spprint(Call(:+, Variable("x"), Variable("y"), Literal(1))) == "?x + ?y + 1"
+@test spprint(Call(:+,
+  Variable("x"),
+  Call(:*, Variable("y"), Literal(2)))) == "?x + (?y * 2)"
+@test spprint(Call(:*,
+  Variable("x"),
+  Call(:+, Variable("y"), Literal(1)))) == "?x * (?y + 1)"
+
+# Builtin calls
+@test spprint(Call(:STRLEN, Literal("foo"))) == "STRLEN(\"foo\")"
+@test spprint(Call(:CEIL, Literal(1.5))) == "CEIL(1.5)"
+@test spprint(Call(:IF,
+  Call(:CONTAINS, Variable("x"), Literal("foo")),
+  Call(:UCASE, Variable("x")),
+  Call(:LCASE, Variable("x"))
+)) == """IF(CONTAINS(?x,"foo"),UCASE(?x),LCASE(?x))"""
+
 # Query
 #######
 
@@ -137,6 +164,7 @@ WHERE { ?x foaf:mbox <mailto:alice@org> }
 @test spprint(GroupBy(Variable("x"))) == "GROUP BY ?x\n"
 @test spprint(GroupBy([Variable("x"),Variable("y")])) == "GROUP BY ?x ?y\n"
 
-@test spprint(Having(Variable("x"))) == "HAVING ?x\n"
+@test spprint(Having(Call(:>, Call(:AVG, Variable("size")), Literal(10)))) ==
+  "HAVING(AVG(?size) > 10)\n"
 
 end
