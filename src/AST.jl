@@ -1,9 +1,9 @@
 module AST
 export SPARQLNode, Clause, Statement, Node, Expression,
   Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable, Triple,
-  PrologueClause, BaseURI, Prefix,
   Query, Select, Construct, Ask, Describe,
-  SolutionModifier, Dataset, OrderBy, Limit, Offset, GroupBy, Having
+  PrologueClause, BaseURI, Prefix,
+  SolutionModifierClause, Dataset, OrderBy, Limit, Offset, GroupBy, Having
 
 using AutoHashEquals
 
@@ -59,20 +59,6 @@ end
 Resource(uri::String) = ResourceURI(uri)
 Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
 
-# Prologue
-##########
-
-abstract type PrologueClause <: Clause end
-
-@auto_hash_equals struct BaseURI <: PrologueClause
-  uri::String
-end
-
-@auto_hash_equals struct Prefix <: PrologueClause
-  name::String
-  uri::String
-end
-
 # Query
 #######
 
@@ -117,6 +103,9 @@ end
   pattern::Vector{Triple}
   clauses::Vector{<:Clause}
   
+  function Describe(nodes::Vector{<:Node}, args...)
+    new(nodes, Triple[], collect(args))
+  end
   function Describe(nodes::Vector{<:Node}, pattern::Vector{Triple}, args...)
     new(nodes, pattern, collect(args))
   end
@@ -125,7 +114,17 @@ end
 # Clauses
 #########
 
-abstract type SolutionModifier <: Clause end
+abstract type PrologueClause <: Clause end
+abstract type SolutionModifierClause <: Clause end
+
+@auto_hash_equals struct BaseURI <: PrologueClause
+  uri::String
+end
+
+@auto_hash_equals struct Prefix <: PrologueClause
+  name::String
+  uri::String
+end
 
 @auto_hash_equals struct Dataset <: Clause
   resource::Resource
@@ -133,25 +132,25 @@ abstract type SolutionModifier <: Clause end
   Dataset(resource::Resource; named::Bool=false) = new(resource, named)
 end
 
-@auto_hash_equals struct OrderBy <: SolutionModifier
+@auto_hash_equals struct OrderBy <: SolutionModifierClause
   variables::Vector{<:Expression}
 end
 OrderBy(variable::Expression) = OrderBy([variable])
 
-@auto_hash_equals struct Limit <: SolutionModifier
+@auto_hash_equals struct Limit <: SolutionModifierClause
   count::Int
 end
 
-@auto_hash_equals struct Offset <: SolutionModifier
+@auto_hash_equals struct Offset <: SolutionModifierClause
   count::Int
 end
 
-@auto_hash_equals struct GroupBy <: SolutionModifier
+@auto_hash_equals struct GroupBy <: SolutionModifierClause
   variables::Vector{<:VariableBinding}
 end
 GroupBy(variable::VariableBinding) = GroupBy([variable])
 
-@auto_hash_equals struct Having <: SolutionModifier
+@auto_hash_equals struct Having <: SolutionModifierClause
   constraint::Expression
 end
 

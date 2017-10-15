@@ -45,52 +45,70 @@ function pprint(io::IO, triple::Triple, n::Int)
   pprint(io, triple.object)
 end
 
-# Prologue
-##########
-
-function pprint(io::IO, base::BaseURI, n::Int)
-  iprintln(io, n, "BASE <", base.uri, ">")
-end
-
-function pprint(io::IO, prefix::Prefix, n::Int)
-  iprintln(io, n, "PREFIX ", prefix.name, ": <", prefix.uri, ">")
-end
-
 # Query
 #######
 
-function pprint(io::IO, select::Select, n::Int)
-  for clause in select.clauses
-    if isa(clause, PrologueClause)
-      pprint(io, clause, n)
-    end
-  end
+function pprint(io::IO, query::Select, n::Int)
+  pprint_clauses(io, query.clauses, PrologueClause, n)
   
   iprint(io, n,
-    if select.distinct
+    if query.distinct
       "SELECT DISTINCT "
-    elseif select.reduced
+    elseif query.reduced
       "SELECT REDUCED "
     else
       "SELECT "
     end)
-  join(io, (sprint(pprint, var) for var in select.variables), " ")
+  join(io, (sprint(pprint, var) for var in query.variables), " ")
   println(io)
   
-  for clause in select.clauses
-    if isa(clause, Dataset)
-      pprint(io, clause, n)
-    end
-  end
-  
+  pprint_clauses(io, query.clauses, Dataset, n)
   iprint(io, n, "WHERE ")
-  pprint_block(io, select.pattern, n+2)
+  pprint_block(io, query.pattern, n+2)
+  pprint_clauses(io, query.clauses, SolutionModifierClause, n)
+end
+
+function pprint(io::IO, query::Construct, n::Int)
+  pprint_clauses(io, query.clauses, PrologueClause, n)
   
-  for clause in select.clauses
-    if !(isa(clause, Dataset) || isa(clause, PrologueClause))
-      pprint(io, clause, n)
-    end
+  iprint(io, n, "CONSTRUCT ")
+  pprint_block(io, query.construct, n+2)
+  
+  pprint_clauses(io, query.clauses, Dataset, n)
+  iprint(io, n, "WHERE ")
+  pprint_block(io, query.pattern, n+2)
+  pprint_clauses(io, query.clauses, SolutionModifierClause, n)
+end
+
+function pprint(io::IO, query::Ask, n::Int)
+  pprint_clauses(io, query.clauses, PrologueClause, n)
+  
+  iprint(io, n, "ASK")
+  
+  if any(isa(clause, Dataset) for clause in query.clauses)
+    println(io)
+    pprint_clauses(io, query.clauses, Dataset, n)
+    iprint(io, n, "WHERE ")
+  else
+    print(io, " ")
   end
+  pprint_block(io, query.pattern, n+2)
+  pprint_clauses(io, query.clauses, SolutionModifierClause, n)
+end
+
+function pprint(io::IO, query::Describe, n::Int)
+  pprint_clauses(io, query.clauses, PrologueClause, n)
+  
+  iprint(io, n, "DESCRIBE ")
+  join(io, (sprint(pprint, node) for node in query.nodes), " ")
+  println(io)
+  
+  pprint_clauses(io, query.clauses, Dataset, n)
+  if !isempty(query.pattern)
+    iprint(io, n, "WHERE ")
+    pprint_block(io, query.pattern, n+2)
+  end
+  pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
 function pprint(io::IO, binding::Pair{Expression,Variable}, n::Int)
@@ -121,8 +139,24 @@ function pprint_block(io::IO, expressions::Vector, n::Int)
   end
 end
 
+function pprint_clauses(io::IO, clauses::Vector{<:Clause}, typ::Type, n::Int)
+  for clause in clauses
+    if isa(clause, typ)
+      pprint(io, clause, n)
+    end
+  end
+end
+
 # Clauses
 #########
+
+function pprint(io::IO, base::BaseURI, n::Int)
+  iprintln(io, n, "BASE <", base.uri, ">")
+end
+
+function pprint(io::IO, prefix::Prefix, n::Int)
+  iprintln(io, n, "PREFIX ", prefix.name, ": <", prefix.uri, ">")
+end
 
 function pprint(io::IO, clause::Dataset, n::Int)
   iprint(io, n, "FROM ")
@@ -140,11 +174,11 @@ function pprint(io::IO, clause::OrderBy, n::Int)
 end
 
 function pprint(io::IO, clause::Limit, n::Int)
-  iprintln(io, n, "LIMIT $(clause.count)")
+  iprintln(io, n, "LIMIT ", clause.count)
 end
 
 function pprint(io::IO, clause::Offset, n::Int)
-  iprintln(io, n, "OFFSET $(clause.count)")
+  iprintln(io, n, "OFFSET ", clause.count)
 end
 
 function pprint(io::IO, clause::GroupBy, n::Int)
