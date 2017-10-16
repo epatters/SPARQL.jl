@@ -8,8 +8,8 @@ using ..AST
 pprint(ast::SPARQLNode) = pprint(STDOUT, ast)
 pprint(io::IO, ast::SPARQLNode) = pprint(io, ast, 0)
 
-# Nodes and triples
-###################
+# Nodes
+#######
 
 function pprint(io::IO, node::ResourceURI, n::Int)
   print(io, "<", node.uri, ">")
@@ -37,20 +37,12 @@ function pprint(io::IO, node::Variable, n::Int)
   print(io, "?", node.name)
 end
 
-function pprint(io::IO, triple::Triple, n::Int)
-  pprint(io, triple.subject)
-  print(io, " ")
-  pprint(io, triple.predicate)
-  print(io, " ")
-  pprint(io, triple.object)
-end
-
 # Calls
 #######
 
 const unary_ops = Set([:!, :+, :-])
 const binary_ops = Set([:(=), :!=, :<, :>, :<=, :>=, :&&, :||, :+, :-, :*, :/,
-                        :NOT, Symbol("NOT IN") ])
+                        :IN, Symbol("NOT IN") ])
 
 function pprint(io::IO, expr::Call, n::Int)
   pprint_expr(io, expr, false)
@@ -60,11 +52,14 @@ function pprint_expr(io::IO, expr::Expression, paren::Bool)
   pprint(io, expr)
 end
 function pprint_expr(io::IO, expr::Call, paren::Bool)
+  # Case 1: Unary operation.
   if length(expr.args) == 1 && expr.head in unary_ops
     if paren; print(io, "(") end
     print(io, expr.head, " ")
     pprint_expr(io, first(expr.args), true)
     if paren; print(io, ")") end
+  
+  # Case 2: Binary operation.
   elseif expr.head in binary_ops
     if paren; print(io, "(") end
     for (i, arg) in enumerate(expr.args)
@@ -74,11 +69,44 @@ function pprint_expr(io::IO, expr::Call, paren::Bool)
       pprint_expr(io, arg, true)
     end
     if paren; print(io, ")") end
+  
+  # Case 3: Builtin function call.
   else
     print(io, expr.head, "(")
     join(io, (sprint(pprint, arg) for arg in expr.args), ",")
     print(io, ")")
   end
+end
+
+# Patterns
+##########
+
+function pprint(io::IO, binding::VariableBinding, n::Int)
+  print(io, "(")
+  pprint(io, first(binding))
+  print(io, " AS ")
+  pprint(io, last(binding))
+  print(io, ")")
+end
+pprint(io::IO, binding::VariableBinding) = pprint(io, binding, 0)
+
+function pprint(io::IO, triple::Triple, n::Int)
+  pprint(io, triple.subject)
+  print(io, " ")
+  pprint(io, triple.predicate)
+  print(io, " ")
+  pprint(io, triple.object)
+end
+
+function pprint(io::IO, pattern::Bind, n::Int)
+  print(io, "BIND")
+  pprint(io, pattern.binding)
+end
+
+function pprint(io::IO, pattern::Filter_, n::Int)
+  print(io, "FILTER(")
+  pprint(io, pattern.constraint)
+  print(io, ")")
 end
 
 # Query
@@ -100,7 +128,7 @@ function pprint(io::IO, query::Select, n::Int)
   
   pprint_clauses(io, query.clauses, Dataset, n)
   iprint(io, n, "WHERE ")
-  pprint_block(io, query.pattern, n+2)
+  pprint_block(io, query.patterns, n+2)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -112,7 +140,7 @@ function pprint(io::IO, query::Construct, n::Int)
   
   pprint_clauses(io, query.clauses, Dataset, n)
   iprint(io, n, "WHERE ")
-  pprint_block(io, query.pattern, n+2)
+  pprint_block(io, query.patterns, n+2)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -128,7 +156,7 @@ function pprint(io::IO, query::Ask, n::Int)
   else
     print(io, " ")
   end
-  pprint_block(io, query.pattern, n+2)
+  pprint_block(io, query.patterns, n+2)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -140,19 +168,11 @@ function pprint(io::IO, query::Describe, n::Int)
   println(io)
   
   pprint_clauses(io, query.clauses, Dataset, n)
-  if !isempty(query.pattern)
+  if !isempty(query.patterns)
     iprint(io, n, "WHERE ")
-    pprint_block(io, query.pattern, n+2)
+    pprint_block(io, query.patterns, n+2)
   end
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
-end
-
-function pprint(io::IO, binding::Pair{Expression,Variable}, n::Int)
-  print(io, "(")
-  pprint(io, first(binding))
-  print(io, " AS ")
-  pprint(io, last(binding))
-  print(io, ")")
 end
 
 function pprint_block(io::IO, expressions::Vector, n::Int)

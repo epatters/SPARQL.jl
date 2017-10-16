@@ -6,8 +6,8 @@ using SPARQL.Writer
 
 spprint(ast::SPARQLNode) = sprint(pprint, ast)
 
-# Nodes and triples
-###################
+# Nodes
+#######
 
 @test spprint(ResourceCURIE("ex", "bob")) == "ex:bob"
 @test spprint(ResourceURI("http://www.example.com")) == "<http://www.example.com>"
@@ -19,8 +19,6 @@ spprint(ast::SPARQLNode) = sprint(pprint, ast)
 @test spprint(Literal(false)) == "false"
 @test spprint(Blank("b")) == "_:b"
 @test spprint(Variable("a")) == "?a"
-@test spprint(Triple(Resource("ex","bob"), Resource("rdf","type"), Resource("ex","Person"))) ==
-  "ex:bob rdf:type ex:Person"
 
 # Calls
 #######
@@ -48,6 +46,16 @@ spprint(ast::SPARQLNode) = sprint(pprint, ast)
   Call(:UCASE, Variable("x")),
   Call(:LCASE, Variable("x"))
 )) == """IF(CONTAINS(?x,"foo"),UCASE(?x),LCASE(?x))"""
+
+# Patterns
+##########
+
+@test spprint(Triple(Resource("ex","bob"), Resource("rdf","type"), Resource("ex","Person"))) ==
+  "ex:bob rdf:type ex:Person"
+@test spprint(Bind(Call(:+, Variable("x"), Variable("y")) => Variable("z"))) ==
+  "BIND(?x + ?y AS ?z)"
+@test spprint(Filter_(Call(:>, Variable("x"), Literal(10)))) ==
+  "FILTER(?x > 10)"
 
 # Query
 #######

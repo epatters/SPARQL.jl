@@ -1,6 +1,7 @@
 module AST
 export SPARQLNode, Clause, Statement, Expression, Call,
-  Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable, Triple,
+  Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable,
+  Pattern, VariableBinding, Triple, Bind, Filter_,
   Query, Select, Construct, Ask, Describe,
   PrologueClause, BaseURI, Prefix,
   SolutionModifierClause, Dataset, OrderBy, Limit, Offset, GroupBy, Having
@@ -23,8 +24,8 @@ abstract type Statement <: SPARQLNode end
 """
 abstract type Expression <: SPARQLNode end
 
-# Nodes and triples
-###################
+# Nodes
+#######
 
 abstract type Node <: Expression end
 abstract type Resource <: Node end
@@ -52,12 +53,6 @@ end
   name::String
 end
 
-@auto_hash_equals struct Triple <: SPARQLNode
-  subject::Node
-  predicate::Node
-  object::Node
-end
-
 # Convenience constructors
 Resource(uri::String) = ResourceURI(uri)
 Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
@@ -71,55 +66,76 @@ Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
   Call(head, args...) = new(head, collect(args))
 end
 
+# Patterns
+##########
+
+abstract type Pattern <: SPARQLNode end
+
+const VariableBinding = Pair{<:Expression,Variable}
+const VariableOrBinding = Union{Variable,VariableBinding}
+
+@auto_hash_equals struct Triple <: Pattern
+  subject::Node
+  predicate::Node
+  object::Node
+end
+
+@auto_hash_equals struct Bind <: Pattern
+  binding::VariableBinding
+end
+
+# XXX: We use `Filter_` until the deprecated `Base.Filter` is removed.
+@auto_hash_equals struct Filter_ <: Pattern
+  constraint::Expression
+end
+
 # Query
 #######
 
 abstract type Query <: Statement end
 
-const VariableBinding = Union{Variable,Pair{Expression,Variable}}
-
 @auto_hash_equals struct Select <: Query
-  variables::Vector{<:VariableBinding}
-  pattern::Vector{Triple}
+  variables::Vector{<:VariableOrBinding}
+  patterns::Vector{<:Pattern}
   clauses::Vector{<:Clause}
   distinct::Bool
   reduced::Bool
   
-  function Select(vars::Vector{<:VariableBinding}, pattern::Vector{Triple}, args...;
-                  distinct::Bool=false, reduced::Bool=false)
-    new(vars, pattern, collect(args), distinct, reduced)
+  function Select(vars::Vector{<:VariableOrBinding}, patterns::Vector{<:Triple},
+                  args...; distinct::Bool=false, reduced::Bool=false)
+    new(vars, patterns, collect(args), distinct, reduced)
   end
 end
 
 @auto_hash_equals struct Construct <: Query
   construct::Vector{Triple}
-  pattern::Vector{Triple}
+  patterns::Vector{<:Pattern}
   clauses::Vector{<:Clause}
   
-  function Construct(cons::Vector{Triple}, pattern::Vector{Triple}, args...)
-    new(cons, pattern, collect(args))
+  function Construct(cons::Vector{Triple}, patterns::Vector{<:Pattern}, args...)
+    new(cons, patterns, collect(args))
   end
 end
 
 @auto_hash_equals struct Ask <: Query
-  pattern::Vector{Triple}
+  patterns::Vector{<:Pattern}
   clauses::Vector{<:Clause}
   
-  function Ask(pattern::Vector{Triple}, args...)
-    new(pattern, collect(args))
+  function Ask(patterns::Vector{<:Pattern}, args...)
+    new(patterns, collect(args))
   end
 end
 
 @auto_hash_equals struct Describe <: Query
   nodes::Vector{<:Node}
-  pattern::Vector{Triple}
+  patterns::Vector{<:Pattern}
   clauses::Vector{<:Clause}
   
   function Describe(nodes::Vector{<:Node}, args...)
-    new(nodes, Triple[], collect(args))
+    new(nodes, Pattern[], collect(args))
   end
-  function Describe(nodes::Vector{<:Node}, pattern::Vector{Triple}, args...)
-    new(nodes, pattern, collect(args))
+  function Describe(nodes::Vector{<:Node}, patterns::Vector{<:Pattern}, args...)
+    new(nodes, patterns, collect(args))
   end
 end
 
@@ -158,9 +174,9 @@ end
 end
 
 @auto_hash_equals struct GroupBy <: SolutionModifierClause
-  variables::Vector{<:VariableBinding}
+  variables::Vector{<:VariableOrBinding}
 end
-GroupBy(variable::VariableBinding) = GroupBy([variable])
+GroupBy(variable::VariableOrBinding) = GroupBy([variable])
 
 @auto_hash_equals struct Having <: SolutionModifierClause
   constraint::Expression
