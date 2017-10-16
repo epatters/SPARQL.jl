@@ -160,8 +160,7 @@ function pprint(io::IO, query::Select, n::Int)
   println(io)
   
   pprint_clauses(io, query.clauses, Dataset, n)
-  iprint(io, n, "WHERE ")
-  pprint_patterns(io, query.patterns, n+2)
+  pprint_clauses(io, query.clauses, Where, n)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -172,8 +171,7 @@ function pprint(io::IO, query::Construct, n::Int)
   pprint_patterns(io, query.construct, n+2)
   
   pprint_clauses(io, query.clauses, Dataset, n)
-  iprint(io, n, "WHERE ")
-  pprint_patterns(io, query.patterns, n+2)
+  pprint_clauses(io, query.clauses, Where, n)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -181,15 +179,14 @@ function pprint(io::IO, query::Ask, n::Int)
   pprint_clauses(io, query.clauses, PrologueClause, n)
   
   iprint(io, n, "ASK")
-  
   if any(isa(clause, Dataset) for clause in query.clauses)
     println(io)
-    pprint_clauses(io, query.clauses, Dataset, n)
-    iprint(io, n, "WHERE ")
   else
     print(io, " ")
   end
-  pprint_patterns(io, query.patterns, n+2)
+  
+  pprint_clauses(io, query.clauses, Dataset, n)
+  pprint_clauses(io, query.clauses, Where, n)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -201,10 +198,7 @@ function pprint(io::IO, query::Describe, n::Int)
   println(io)
   
   pprint_clauses(io, query.clauses, Dataset, n)
-  if !isempty(query.patterns)
-    iprint(io, n, "WHERE ")
-    pprint_patterns(io, query.patterns, n+2)
-  end
+  pprint_clauses(io, query.clauses, Where, n)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -234,6 +228,11 @@ function pprint(io::IO, clause::Dataset, n::Int)
   end
   pprint(io, clause.resource)
   println(io)
+end
+
+function pprint(io::IO, clause::Where, n::Int)
+  iprint(io, n, "WHERE ")
+  pprint_patterns(io, clause.patterns, n+2)
 end
 
 function pprint(io::IO, clause::OrderBy, n::Int)

@@ -2,9 +2,9 @@ module AST
 export SPARQLNode, Clause, Statement, Expression, Call,
   Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable,
   Pattern, VariableBinding, Triple, Graph, Optional, Bind, Filter_,
-  Query, Select, Construct, Ask, Describe,
+  Query, Select, Construct, Ask, Describe, Dataset, Where,
   PrologueClause, BaseURI, Prefix,
-  SolutionModifierClause, Dataset, OrderBy, Limit, Offset, GroupBy, Having
+  SolutionModifierClause, OrderBy, Limit, Offset, GroupBy, Having
 
 using AutoHashEquals
 
@@ -105,47 +105,34 @@ abstract type Query <: Statement end
 
 @auto_hash_equals struct Select <: Query
   variables::Vector{<:VariableOrBinding}
-  patterns::Vector{<:Pattern}
   clauses::Vector{<:Clause}
   distinct::Bool
   reduced::Bool
   
-  function Select(vars::Vector{<:VariableOrBinding}, patterns::Vector{<:Pattern},
-                  args...; distinct::Bool=false, reduced::Bool=false)
-    new(vars, patterns, collect(args), distinct, reduced)
+  function Select(vars::Vector{<:VariableOrBinding}, args...;
+                  distinct::Bool=false, reduced::Bool=false)
+    new(vars, collect(args), distinct, reduced)
   end
 end
 
 @auto_hash_equals struct Construct <: Query
   construct::Vector{Triple}
-  patterns::Vector{<:Pattern}
   clauses::Vector{<:Clause}
   
-  function Construct(cons::Vector{Triple}, patterns::Vector{<:Pattern}, args...)
-    new(cons, patterns, collect(args))
-  end
+  Construct(cons::Vector{Triple}, args...) = new(cons, collect(args))
 end
 
 @auto_hash_equals struct Ask <: Query
-  patterns::Vector{<:Pattern}
   clauses::Vector{<:Clause}
   
-  function Ask(patterns::Vector{<:Pattern}, args...)
-    new(patterns, collect(args))
-  end
+  Ask(args...) = new(collect(args))
 end
 
 @auto_hash_equals struct Describe <: Query
   nodes::Vector{<:Node}
-  patterns::Vector{<:Pattern}
   clauses::Vector{<:Clause}
   
-  function Describe(nodes::Vector{<:Node}, args...)
-    new(nodes, Pattern[], collect(args))
-  end
-  function Describe(nodes::Vector{<:Node}, patterns::Vector{<:Pattern}, args...)
-    new(nodes, patterns, collect(args))
-  end
+  Describe(nodes::Vector{<:Node}, args...) = new(nodes, collect(args))
 end
 
 # Clauses
@@ -168,6 +155,11 @@ end
   named::Bool
   Dataset(resource::Resource; named::Bool=false) = new(resource, named)
 end
+
+@auto_hash_equals struct Where <: Clause
+  patterns::Vector{<:Pattern}
+end
+Where() = Where(Pattern[])
 
 @auto_hash_equals struct OrderBy <: SolutionModifierClause
   variables::Vector{<:Expression}

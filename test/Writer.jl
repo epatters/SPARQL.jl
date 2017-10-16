@@ -74,8 +74,10 @@ spprint(ast::SPARQLNode) = sprint(pprint, ast)
 
 @test spprint(Select(
   [ Variable("name"), Variable("mbox") ],
-  [ Triple(Variable("x"), Resource("foaf","name"), Variable("name")),
-    Triple(Variable("x"), Resource("foaf","mbox"), Variable("mbox")) ],
+  Where([
+    Triple(Variable("x"), Resource("foaf","name"), Variable("name")),
+    Triple(Variable("x"), Resource("foaf","mbox"), Variable("mbox")),
+  ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
 )) == """
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
@@ -87,7 +89,7 @@ WHERE {
 
 @test spprint(Select(
   [ Variable("name") ],
-  [ Triple(Variable("x"), Resource("foaf","name"), Variable("name")) ],
+  Where([ Triple(Variable("x"), Resource("foaf","name"), Variable("name")) ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
   Dataset(Resource("http://example.org/foaf/aliceFoaf")),
 )) == """
@@ -99,7 +101,7 @@ WHERE { ?x foaf:name ?name }
 
 @test spprint(Select(
   [ Variable("name") ],
-  [ Triple(Variable("x"), Resource("foaf","name"), Variable("name")) ],
+  Where([Triple(Variable("x"), Resource("foaf","name"), Variable("name")) ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
   OrderBy(Variable("name"))
 )) == """
@@ -111,10 +113,12 @@ ORDER BY ?name
 
 @test spprint(Select(
   [ Variable("src"), Variable("bobNick") ],
-  [ Graph(
+  Where([
+    Graph(
       Variable("src"),
       [ Triple(Variable("x"), Resource("foaf","mbox"), Resource("mailto:bob@work.example")),
-        Triple(Variable("x"), Resource("foaf","nick"), Variable("bobNick")) ] )],
+        Triple(Variable("x"), Resource("foaf","nick"), Variable("bobNick")) ])
+  ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
   Dataset(Resource("http://example.org/foaf/aliceFoaf"); named=true),
   Dataset(Resource("http://example.org/foaf/bobFoaf"); named=true),
@@ -131,10 +135,12 @@ WHERE {
 
 @test spprint(Select(
   [ Variable("name"), Variable("mbox") ],
-  [ Triple(Variable("x"), Resource("foaf","name"), Variable("name"))
+  Where([
+    Triple(Variable("x"), Resource("foaf","name"), Variable("name")),
     Optional([
       Triple(Variable("x"), Resource("foaf","mbox"), Variable("mbox"))
-    ]) ],
+    ]),
+  ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
 )) == """
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
@@ -148,7 +154,7 @@ WHERE {
 
 @test spprint(Construct(
   [ Triple(Resource("http://example.org/person#Alice"), Resource("vcard","FN"), Variable("name")) ],
-  [ Triple(Variable("x"), Resource("foaf","name"), Variable("name")) ],
+  Where([ Triple(Variable("x"), Resource("foaf","name"), Variable("name")) ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
   Prefix("vcard", "http://www.w3.org/2001/vcard-rdf/3.0#"),
 )) == """
@@ -161,15 +167,15 @@ WHERE { ?x foaf:name ?name }
 # Ask
 
 @test spprint(Ask(
-  [ Triple(Variable("x"), Resource("foaf","name"), Literal("Alice")) ],
+  Where([ Triple(Variable("x"), Resource("foaf","name"), Literal("Alice")) ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
 )) == """
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-ASK { ?x foaf:name "Alice" }
+ASK WHERE { ?x foaf:name "Alice" }
 """
 
 @test spprint(Ask(
-  [ Triple(Variable("x"), Resource("foaf","name"), Literal("Alice")) ],
+  Where([ Triple(Variable("x"), Resource("foaf","name"), Literal("Alice")) ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
   Dataset(Resource("http://example.org/foaf/aliceFoaf")),
 )) == """
@@ -187,7 +193,9 @@ WHERE { ?x foaf:name "Alice" }
 
 @test spprint(Describe(
   [ Variable("x") ],
-  [ Triple(Variable("x"), Resource("foaf","mbox"), Resource("mailto:alice@org")) ],
+  Where([
+    Triple(Variable("x"), Resource("foaf","mbox"), Resource("mailto:alice@org"))
+  ]),
   Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
 )) == """
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
@@ -207,6 +215,19 @@ WHERE { ?x foaf:mbox <mailto:alice@org> }
   "FROM <http://example.org>\n"
 @test spprint(Dataset(Resource("http://example.org/alice"), named=true)) ==
   "FROM NAMED <http://example.org/alice>\n"
+
+@test spprint(Where()) == "WHERE { }\n"
+@test spprint(Where([
+  Triple(Variable("x"), Resource("foaf","name"), Literal("Alice"))
+])) == """WHERE { ?x foaf:name "Alice" }\n"""
+@test spprint(Where([
+  Triple(Variable("x"), Resource("foaf","name"), Variable("name")),
+  Triple(Variable("x"), Resource("foaf","mbox"), Variable("mbox"))
+])) == """
+WHERE {
+  ?x foaf:name ?name .
+  ?x foaf:mbox ?mbox }
+"""
 
 @test spprint(OrderBy(Variable("x"))) == "ORDER BY ?x\n"
 @test spprint(OrderBy([Variable("x"),Variable("y")])) == "ORDER BY ?x ?y\n"
