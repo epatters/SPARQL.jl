@@ -20,9 +20,6 @@ spprint(ast::SPARQLNode) = sprint(pprint, ast)
 @test spprint(Blank("b")) == "_:b"
 @test spprint(Variable("a")) == "?a"
 
-# Calls
-#######
-
 # Unary operators
 @test spprint(Call(:!, Variable("x"))) == "! ?x"
 @test spprint(Call(:-, Variable("x"))) == "- ?x"
@@ -52,6 +49,34 @@ spprint(ast::SPARQLNode) = sprint(pprint, ast)
 
 @test spprint(Triple(Resource("ex","bob"), Resource("rdf","type"), Resource("ex","Person"))) ==
   "ex:bob rdf:type ex:Person"
+
+# Property patterns
+
+@test spprint(Triple(
+  Resource("","book1"),
+  Call(:|, Resource("dc","title"), Resource("rdfs","label")),
+  Variable("displayString")
+)) == ":book1 dc:title|rdfs:label ?displayString"
+
+@test spprint(Triple(
+  Variable("x"),
+  Call(:/, Resource("foaf","knows"), Resource("foaf","name")),
+  Variable("name")
+)) == "?x foaf:knows/foaf:name ?name"
+
+@test spprint(Triple(
+  Resource("mailto:alice@example"),
+  Call(:^, Resource("foaf","mbox")),
+  Variable("x")
+)) == "<mailto:alice@example> ^foaf:mbox ?x"
+
+@test spprint(Triple(
+  Variable("x"),
+  Call(:/, Resource("foaf","knows"), Call(:^, Resource("foaf","knows"))),
+  Variable("y")
+)) == "?x foaf:knows / (^foaf:knows) ?y"
+
+# Special keywords
 
 @test spprint(Graph(
   Variable("graph"),

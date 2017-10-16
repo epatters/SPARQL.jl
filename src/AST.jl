@@ -1,6 +1,6 @@
 module AST
-export SPARQLNode, Clause, Statement, Expression, Call,
-  Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable,
+export SPARQLNode, Clause, Statement,
+  Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable, Call,
   Pattern, VariableBinding, Triple, Graph, Optional, Bind, Filter_,
   Query, Select, Construct, Ask, Describe, Dataset, Where,
   PrologueClause, BaseURI, Prefix,
@@ -20,14 +20,10 @@ abstract type Clause <: SPARQLNode end
 """
 abstract type Statement <: SPARQLNode end
 
-""" Base type for expression nodes in SPARQL AST.
-"""
-abstract type Expression <: SPARQLNode end
-
 # Nodes
 #######
 
-abstract type Node <: Expression end
+abstract type Node <: SPARQLNode end
 abstract type Resource <: Node end
 
 @auto_hash_equals struct ResourceURI <: Resource
@@ -53,25 +49,22 @@ end
   name::String
 end
 
+@auto_hash_equals struct Call <: Node
+  head::Symbol
+  args::Vector{<:Node}
+  Call(head, args...) = new(head, collect(args))
+end
+
 # Convenience constructors
 Resource(uri::String) = ResourceURI(uri)
 Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
-
-# Calls
-#######
-
-@auto_hash_equals struct Call <: Expression
-  head::Symbol
-  args::Vector{<:Expression}
-  Call(head, args...) = new(head, collect(args))
-end
 
 # Patterns
 ##########
 
 abstract type Pattern <: SPARQLNode end
 
-const VariableBinding = Pair{<:Expression,Variable}
+const VariableBinding = Pair{<:Node,Variable}
 const VariableOrBinding = Union{Variable,VariableBinding}
 
 @auto_hash_equals struct Triple <: Pattern
@@ -95,7 +88,7 @@ end
 
 # XXX: Use `Filter_` until the deprecated `Base.Filter` is removed.
 @auto_hash_equals struct Filter_ <: Pattern
-  constraint::Expression
+  constraint::Node
 end
 
 # Query
@@ -162,9 +155,9 @@ end
 Where() = Where(Pattern[])
 
 @auto_hash_equals struct OrderBy <: SolutionModifierClause
-  variables::Vector{<:Expression}
+  nodes::Vector{<:Node}
 end
-OrderBy(variable::Expression) = OrderBy([variable])
+OrderBy(node::Node) = OrderBy([node])
 
 @auto_hash_equals struct Limit <: SolutionModifierClause
   count::Int
@@ -180,7 +173,7 @@ end
 GroupBy(variable::VariableOrBinding) = GroupBy([variable])
 
 @auto_hash_equals struct Having <: SolutionModifierClause
-  constraint::Expression
+  constraint::Node
 end
 
 end

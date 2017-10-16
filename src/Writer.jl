@@ -11,6 +11,12 @@ pprint(io::IO, ast::SPARQLNode) = pprint(io, ast, 0)
 # Nodes
 #######
 
+const unary_prefix_ops = Set([:!, :-, :^])
+const unary_postfix_ops = Set([:*, :+, :?])
+const unary_ops = union(unary_prefix_ops, unary_postfix_ops)
+const binary_ops = Set([:(=), :!=, :<, :>, :<=, :>=, :&, :|, :&&, :||,
+                        :+, :-, :*, :/, :IN, Symbol("NOT IN") ])
+
 function pprint(io::IO, node::ResourceURI, n::Int)
   print(io, "<", node.uri, ">")
 end
@@ -37,26 +43,28 @@ function pprint(io::IO, node::Variable, n::Int)
   print(io, "?", node.name)
 end
 
-# Calls
-#######
-
-const unary_ops = Set([:!, :+, :-])
-const binary_ops = Set([:(=), :!=, :<, :>, :<=, :>=, :&&, :||, :+, :-, :*, :/,
-                        :IN, Symbol("NOT IN") ])
-
 function pprint(io::IO, expr::Call, n::Int)
   pprint_expr(io, expr, false)
 end
 
-function pprint_expr(io::IO, expr::Expression, paren::Bool)
+function pprint_expr(io::IO, expr::Node, paren::Bool)
   pprint(io, expr)
 end
 function pprint_expr(io::IO, expr::Call, paren::Bool)
+  # Space between operator and operands. Purely cosmetic.
+  op_space = all(isa(arg, ResourceCURIE) for arg in expr.args) ? "" : " "
+  
   # Case 1: Unary operation.
   if length(expr.args) == 1 && expr.head in unary_ops
+    arg = first(expr.args)
     if paren; print(io, "(") end
-    print(io, expr.head, " ")
-    pprint_expr(io, first(expr.args), true)
+    if expr.head in unary_prefix_ops
+      print(io, expr.head, op_space)
+    end
+    pprint_expr(io, arg, true)
+    if expr.head in unary_postfix_ops
+      print(io, op_space, expr.head)
+    end
     if paren; print(io, ")") end
   
   # Case 2: Binary operation.
@@ -64,7 +72,7 @@ function pprint_expr(io::IO, expr::Call, paren::Bool)
     if paren; print(io, "(") end
     for (i, arg) in enumerate(expr.args)
       if i > 1
-        print(io, " ", expr.head, " ")
+        print(io, op_space, expr.head, op_space)
       end
       pprint_expr(io, arg, true)
     end
@@ -237,7 +245,7 @@ end
 
 function pprint(io::IO, clause::OrderBy, n::Int)
   iprint(io, n, "ORDER BY ")
-  join(io, (sprint(pprint, var) for var in clause.variables), " ")
+  join(io, (sprint(pprint, node) for node in clause.nodes), " ")
   println(io)
 end
 
