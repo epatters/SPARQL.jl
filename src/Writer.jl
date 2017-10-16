@@ -5,8 +5,8 @@ using ..AST
 
 """ Pretty print a SPARQL AST in valid SPARQL syntax.
 """
-pprint(ast::SPARQLNode) = pprint(STDOUT, ast)
-pprint(io::IO, ast::SPARQLNode) = pprint(io, ast, 0)
+pprint(expr::Expression) = pprint(STDOUT, expr)
+pprint(io::IO, expr::Expression) = pprint(io, expr, 0)
 
 # Nodes
 #######
@@ -43,45 +43,45 @@ function pprint(io::IO, node::Variable, n::Int)
   print(io, "?", node.name)
 end
 
-function pprint(io::IO, expr::Call, n::Int)
-  pprint_expr(io, expr, false)
+function pprint(io::IO, node::Call, n::Int)
+  pprint_node(io, node, false)
 end
 
-function pprint_expr(io::IO, expr::Node, paren::Bool)
-  pprint(io, expr)
+function pprint_node(io::IO, node::Node, paren::Bool)
+  pprint(io, node)
 end
-function pprint_expr(io::IO, expr::Call, paren::Bool)
+function pprint_node(io::IO, node::Call, paren::Bool)
   # Space between operator and operands. Purely cosmetic.
-  op_space = all(isa(arg, ResourceCURIE) for arg in expr.args) ? "" : " "
+  op_space = all(isa(arg, ResourceCURIE) for arg in node.args) ? "" : " "
   
   # Case 1: Unary operation.
-  if length(expr.args) == 1 && expr.head in unary_ops
-    arg = first(expr.args)
+  if length(node.args) == 1 && node.head in unary_ops
+    arg = first(node.args)
     if paren; print(io, "(") end
-    if expr.head in unary_prefix_ops
-      print(io, expr.head, op_space)
+    if node.head in unary_prefix_ops
+      print(io, node.head, op_space)
     end
-    pprint_expr(io, arg, true)
-    if expr.head in unary_postfix_ops
-      print(io, op_space, expr.head)
+    pprint_node(io, arg, true)
+    if node.head in unary_postfix_ops
+      print(io, op_space, node.head)
     end
     if paren; print(io, ")") end
   
   # Case 2: Binary operation.
-  elseif expr.head in binary_ops
+  elseif node.head in binary_ops
     if paren; print(io, "(") end
-    for (i, arg) in enumerate(expr.args)
+    for (i, arg) in enumerate(node.args)
       if i > 1
-        print(io, op_space, expr.head, op_space)
+        print(io, op_space, node.head, op_space)
       end
-      pprint_expr(io, arg, true)
+      pprint_node(io, arg, true)
     end
     if paren; print(io, ")") end
   
   # Case 3: Builtin function call.
   else
-    print(io, expr.head, "(")
-    join(io, (sprint(pprint, arg) for arg in expr.args), ",")
+    print(io, node.head, "(")
+    join(io, (sprint(pprint, arg) for arg in node.args), ",")
     print(io, ")")
   end
 end
@@ -138,12 +138,12 @@ function pprint_patterns(io::IO, patterns::Vector, n::Int; newline::Bool=true)
     print(io, " }")
   else
     println(io, "{")
-    for (i, expr) in enumerate(patterns)
+    for (i, pattern) in enumerate(patterns)
       if i != 1
         println(io, " .")
       end
       indent(io, n)
-      pprint(io, expr, n)
+      pprint(io, pattern, n)
     end
     print(io, " }")
   end

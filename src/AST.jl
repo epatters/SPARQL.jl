@@ -1,5 +1,5 @@
 module AST
-export SPARQLNode, Clause, Statement,
+export Expression, Clause, Statement,
   Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable, Call,
   Pattern, VariableBinding, Triple, Graph, Optional, Bind, Filter_,
   Query, Select, Construct, Ask, Describe, Dataset, Where,
@@ -8,22 +8,22 @@ export SPARQLNode, Clause, Statement,
 
 using AutoHashEquals
 
-""" Base type for all nodes in SPARQL AST.
+""" Base type for all expressions in SPARQL grammar.
 """
-abstract type SPARQLNode end
+abstract type Expression end
 
-""" Base type for (subordinate) clauses in SPARQL grammar.
+""" Base type for subordinate clauses in SPARQL grammar.
 """
-abstract type Clause <: SPARQLNode end
+abstract type Clause <: Expression end
 
-""" Base type for (complete) statements in SPARQL grammar.
+""" Base type for complete statements in SPARQL grammar.
 """
-abstract type Statement <: SPARQLNode end
+abstract type Statement <: Expression end
 
 # Nodes
 #######
 
-abstract type Node <: SPARQLNode end
+abstract type Node <: Expression end
 abstract type Resource <: Node end
 
 @auto_hash_equals struct ResourceURI <: Resource
@@ -62,7 +62,7 @@ Resource(prefix::String, name::String) = ResourceCURIE(prefix, name)
 # Patterns
 ##########
 
-abstract type Pattern <: SPARQLNode end
+abstract type Pattern <: Expression end
 
 const VariableBinding = Pair{<:Node,Variable}
 const VariableOrBinding = Union{Variable,VariableBinding}

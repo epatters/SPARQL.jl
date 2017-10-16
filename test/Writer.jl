@@ -4,7 +4,7 @@ using Base.Test
 using SPARQL.AST
 using SPARQL.Writer
 
-spprint(ast::SPARQLNode) = sprint(pprint, ast)
+spprint(expr::Expression) = sprint(pprint, expr)
 
 # Nodes
 #######
