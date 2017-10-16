@@ -1,7 +1,7 @@
 module AST
 export SPARQLNode, Clause, Statement, Expression, Call,
   Node, Resource, ResourceURI, ResourceCURIE, Literal, Blank, Variable,
-  Pattern, VariableBinding, Triple, Bind, Filter_,
+  Pattern, VariableBinding, Triple, Graph, Optional, Bind, Filter_,
   Query, Select, Construct, Ask, Describe,
   PrologueClause, BaseURI, Prefix,
   SolutionModifierClause, Dataset, OrderBy, Limit, Offset, GroupBy, Having
@@ -80,11 +80,20 @@ const VariableOrBinding = Union{Variable,VariableBinding}
   object::Node
 end
 
+@auto_hash_equals struct Graph <: Pattern
+  node::Node
+  patterns::Vector{<:Pattern}
+end
+
+@auto_hash_equals struct Optional <: Pattern
+  patterns::Vector{<:Pattern}
+end
+
 @auto_hash_equals struct Bind <: Pattern
   binding::VariableBinding
 end
 
-# XXX: We use `Filter_` until the deprecated `Base.Filter` is removed.
+# XXX: Use `Filter_` until the deprecated `Base.Filter` is removed.
 @auto_hash_equals struct Filter_ <: Pattern
   constraint::Expression
 end
@@ -101,7 +110,7 @@ abstract type Query <: Statement end
   distinct::Bool
   reduced::Bool
   
-  function Select(vars::Vector{<:VariableOrBinding}, patterns::Vector{<:Triple},
+  function Select(vars::Vector{<:VariableOrBinding}, patterns::Vector{<:Pattern},
                   args...; distinct::Bool=false, reduced::Bool=false)
     new(vars, patterns, collect(args), distinct, reduced)
   end

@@ -98,6 +98,18 @@ function pprint(io::IO, triple::Triple, n::Int)
   pprint(io, triple.object)
 end
 
+function pprint(io::IO, graph::Graph, n::Int)
+  print(io, "GRAPH ")
+  pprint(io, graph.node)
+  print(io, " ")
+  pprint_patterns(io, graph.patterns, n+2; newline=false)
+end
+
+function pprint(io::IO, optional::Optional, n::Int)
+  print(io, "OPTIONAL ")
+  pprint_patterns(io, optional.patterns, n+2; newline=false)
+end
+
 function pprint(io::IO, pattern::Bind, n::Int)
   print(io, "BIND")
   pprint(io, pattern.binding)
@@ -107,6 +119,27 @@ function pprint(io::IO, pattern::Filter_, n::Int)
   print(io, "FILTER(")
   pprint(io, pattern.constraint)
   print(io, ")")
+end
+
+function pprint_patterns(io::IO, patterns::Vector, n::Int; newline::Bool=true)
+  if isempty(patterns)
+    print(io, "{ }")
+  elseif length(patterns) == 1 && isa(first(patterns), Triple)
+    print(io, "{ ")
+    pprint(io, first(patterns))
+    print(io, " }")
+  else
+    println(io, "{")
+    for (i, expr) in enumerate(patterns)
+      if i != 1
+        println(io, " .")
+      end
+      indent(io, n)
+      pprint(io, expr, n)
+    end
+    print(io, " }")
+  end
+  if newline; println(io) end
 end
 
 # Query
@@ -128,7 +161,7 @@ function pprint(io::IO, query::Select, n::Int)
   
   pprint_clauses(io, query.clauses, Dataset, n)
   iprint(io, n, "WHERE ")
-  pprint_block(io, query.patterns, n+2)
+  pprint_patterns(io, query.patterns, n+2)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -136,11 +169,11 @@ function pprint(io::IO, query::Construct, n::Int)
   pprint_clauses(io, query.clauses, PrologueClause, n)
   
   iprint(io, n, "CONSTRUCT ")
-  pprint_block(io, query.construct, n+2)
+  pprint_patterns(io, query.construct, n+2)
   
   pprint_clauses(io, query.clauses, Dataset, n)
   iprint(io, n, "WHERE ")
-  pprint_block(io, query.patterns, n+2)
+  pprint_patterns(io, query.patterns, n+2)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -156,7 +189,7 @@ function pprint(io::IO, query::Ask, n::Int)
   else
     print(io, " ")
   end
-  pprint_block(io, query.patterns, n+2)
+  pprint_patterns(io, query.patterns, n+2)
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
 end
 
@@ -170,29 +203,9 @@ function pprint(io::IO, query::Describe, n::Int)
   pprint_clauses(io, query.clauses, Dataset, n)
   if !isempty(query.patterns)
     iprint(io, n, "WHERE ")
-    pprint_block(io, query.patterns, n+2)
+    pprint_patterns(io, query.patterns, n+2)
   end
   pprint_clauses(io, query.clauses, SolutionModifierClause, n)
-end
-
-function pprint_block(io::IO, expressions::Vector, n::Int)
-  if isempty(expressions)
-    println(io, "{ }")
-  elseif length(expressions) == 1
-    print(io, "{ ")
-    pprint(io, first(expressions))
-    println(io, " }")
-  else  
-    println(io, "{")
-    for (i, expr) in enumerate(expressions)
-      if i != 1
-        println(io, " .")
-      end
-      indent(io, n)
-      pprint(io, expr)
-    end
-    println(io, " }")
-  end
 end
 
 function pprint_clauses(io::IO, clauses::Vector{<:Clause}, typ::Type, n::Int)

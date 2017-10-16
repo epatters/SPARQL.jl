@@ -52,6 +52,16 @@ spprint(ast::SPARQLNode) = sprint(pprint, ast)
 
 @test spprint(Triple(Resource("ex","bob"), Resource("rdf","type"), Resource("ex","Person"))) ==
   "ex:bob rdf:type ex:Person"
+
+@test spprint(Graph(
+  Variable("graph"),
+  [ Triple(Variable("sub"), Variable("pred"), Variable("obj")) ]
+)) == "GRAPH ?graph { ?sub ?pred ?obj }"
+  
+@test spprint(Optional([
+  Triple(Variable("x"), Resource("foaf","mbox"), Variable("mbox"))
+])) == "OPTIONAL { ?x foaf:mbox ?mbox }"
+
 @test spprint(Bind(Call(:+, Variable("x"), Variable("y")) => Variable("z"))) ==
   "BIND(?x + ?y AS ?z)"
 @test spprint(Filter_(Call(:>, Variable("x"), Literal(10)))) ==
@@ -97,6 +107,41 @@ PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 SELECT ?name
 WHERE { ?x foaf:name ?name }
 ORDER BY ?name
+"""
+
+@test spprint(Select(
+  [ Variable("src"), Variable("bobNick") ],
+  [ Graph(
+      Variable("src"),
+      [ Triple(Variable("x"), Resource("foaf","mbox"), Resource("mailto:bob@work.example")),
+        Triple(Variable("x"), Resource("foaf","nick"), Variable("bobNick")) ] )],
+  Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
+  Dataset(Resource("http://example.org/foaf/aliceFoaf"); named=true),
+  Dataset(Resource("http://example.org/foaf/bobFoaf"); named=true),
+)) == """
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+SELECT ?src ?bobNick
+FROM NAMED <http://example.org/foaf/aliceFoaf>
+FROM NAMED <http://example.org/foaf/bobFoaf>
+WHERE {
+  GRAPH ?src {
+    ?x foaf:mbox <mailto:bob@work.example> .
+    ?x foaf:nick ?bobNick } }
+"""
+
+@test spprint(Select(
+  [ Variable("name"), Variable("mbox") ],
+  [ Triple(Variable("x"), Resource("foaf","name"), Variable("name"))
+    Optional([
+      Triple(Variable("x"), Resource("foaf","mbox"), Variable("mbox"))
+    ]) ],
+  Prefix("foaf", "http://xmlns.com/foaf/0.1/"),
+)) == """
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+SELECT ?name ?mbox
+WHERE {
+  ?x foaf:name ?name .
+  OPTIONAL { ?x foaf:mbox ?mbox } }
 """
 
 # Construct
