@@ -1,0 +1,9 @@
+name = "SPARQL"
+uuid = "d427f2c6-9c3f-11e8-0b8f-4707366c31c7"
+license = "BSD2"
+authors = ["Evan Patterson <ejpatters@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

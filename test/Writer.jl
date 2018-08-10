@@ -1,5 +1,5 @@
 module TestWriter
-using Base.Test
+using Test
 
 using SPARQL.AST
 using SPARQL.Writer
